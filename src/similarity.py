@@ -24,7 +24,7 @@ inputs = processor(
 with torch.no_grad():
     outputs = model(**inputs)
 
-# Similarity score
+# Similarity score calculation
 image_embeds = outputs.image_embeds
 text_embeds = outputs.text_embeds
 
@@ -35,4 +35,3 @@ text_embeds = text_embeds / text_embeds.norm(dim=-1, keepdim=True)
 similarity = (image_embeds @ text_embeds.T).item()
 
 print("Similarity score:", similarity)
-
