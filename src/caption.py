@@ -17,6 +17,7 @@ inputs = processor(image, return_tensors="pt")
 # Generate caption
 with torch.no_grad():
     output = model.generate(**inputs)
+    
 
 # Decode caption
 caption = processor.decode(output[0], skip_special_tokens=True)
