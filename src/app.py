@@ -7,206 +7,220 @@ from transformers import (
 )
 import time
 
-# ---------- 1. PAGE SETUP ----------
+# ---------- 1. PAGE CONFIGURATION ----------
 st.set_page_config(
-    page_title="Semantic Lens AI",
-    page_icon="👁️",
+    page_title="Semantic Validator",
+    page_icon="⚖️",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
-# ---------- 2. ULTRA-MODERN CSS (THE FIX) ----------
+# ---------- 2. STYLED UI (CSS) ----------
 st.markdown("""
     <style>
-    /* 1. FORCE DARK BACKGROUND & TEXT (Fixes Visibility) */
+    /* MAIN BACKGROUND & FONT */
     .stApp {
         background-color: #0e1117;
-        color: #ffffff;
+        font-family: 'Helvetica Neue', sans-serif;
     }
     
-    /* 2. CENTERED CONTAINER FOR INPUTS */
-    div[data-testid="stVerticalBlock"] > div:has(div[data-testid="stForm"]) {
-        max-width: 800px;
-        margin: 0 auto;
-    }
-
-    /* 3. CUSTOM "GLASS" CARD FOR FORM */
-    div[data-testid="stForm"] {
-        background-color: #1e2329;
-        border: 1px solid #30363d;
-        border-radius: 16px;
-        padding: 30px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    }
-
-    /* 4. TYPOGRAPHY & TITLES */
-    h1 {
+    /* CUSTOM 'VERDICT' CARDS */
+    .verdict-box {
+        padding: 25px;
+        border-radius: 12px;
         text-align: center;
-        background: -webkit-linear-gradient(0deg, #3b82f6, #8b5cf6);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        font-size: 3rem !important;
-        font-weight: 800 !important;
-        margin-bottom: 10px !important;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
     }
-    h3 {
-        color: #e6edf3 !important;
-        font-weight: 600;
-        font-size: 1.2rem;
+    .verdict-success {
+        background: linear-gradient(135deg, #14532d 0%, #166534 100%); /* Deep Green */
+        border: 2px solid #22c55e;
     }
-    p, label {
-        color: #8b949e !important;
-        font-size: 1rem;
+    .verdict-warning {
+        background: linear-gradient(135deg, #713f12 0%, #854d0e 100%); /* Deep Orange */
+        border: 2px solid #eab308;
+    }
+    .verdict-error {
+        background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%); /* Deep Red */
+        border: 2px solid #ef4444;
+    }
+    
+    .verdict-title {
+        color: white;
+        font-size: 24px;
+        font-weight: 800;
+        text-transform: uppercase;
+        margin: 0;
+        letter-spacing: 1px;
+    }
+    .verdict-desc {
+        color: #e2e8f0;
+        font-size: 14px;
+        margin-top: 5px;
     }
 
-    /* 5. INPUT FIELDS (High Contrast) */
-    .stTextInput > div > div > input {
-        background-color: #0d1117;
-        color: #ffffff;
-        border: 1px solid #30363d;
-        border-radius: 8px;
-        padding: 12px;
-    }
-    .stTextInput > div > div > input:focus {
-        border-color: #58a6ff;
-        box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2);
-    }
-
-    /* 6. ANALYZE BUTTON (Neon Gradient) */
-    .stButton > button {
+    /* CUSTOM BAR CONTAINER */
+    .bar-container {
+        background-color: #334155;
+        border-radius: 50px;
+        height: 12px;
         width: 100%;
-        background: linear-gradient(90deg, #2563eb, #7c3aed);
+        margin-top: 15px;
+        position: relative;
+    }
+    .bar-fill {
+        height: 100%;
+        border-radius: 50px;
+        transition: width 0.5s ease;
+    }
+    .bar-labels {
+        display: flex;
+        justify-content: space-between;
+        color: #94a3b8;
+        font-size: 10px;
+        margin-top: 5px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    /* SIDEBAR STYLING */
+    section[data-testid="stSidebar"] {
+        background-color: #111827;
+        border-right: 1px solid #1f2937;
+    }
+    .stButton > button {
+        background-color: #3b82f6;
         color: white;
         border: none;
-        padding: 15px;
-        font-size: 1.1rem;
+        border-radius: 6px;
         font-weight: bold;
-        border-radius: 8px;
-        margin-top: 15px;
-        transition: all 0.3s;
     }
     .stButton > button:hover {
-        opacity: 0.9;
-        transform: scale(1.01);
-        box-shadow: 0 0 20px rgba(124, 58, 237, 0.4);
-    }
-
-    /* 7. RESULT METRICS */
-    div[data-testid="stMetricValue"] {
-        font-size: 2.5rem !important;
-        color: #ffffff !important;
-        text-shadow: 0 0 10px rgba(255,255,255,0.2);
+        background-color: #2563eb;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# ---------- 3. MODEL LOADING ----------
+# ---------- 3. LOAD MODELS ----------
 @st.cache_resource
 def load_models():
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    
-    # Load CLIP
     clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
     clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
-    
-    # Load BLIP
     blip_processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
     blip_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base").to(device)
-    
     return clip_model, clip_processor, blip_model, blip_processor, device
 
-# Load models quietly
 clip_model, clip_processor, blip_model, blip_processor, device = load_models()
 
-# ---------- 4. MAIN LAYOUT ----------
-# Header Section
-col_spacer1, col_content, col_spacer2 = st.columns([1, 2, 1])
-with col_content:
-    st.title("Semantic Lens")
-    st.markdown(
-        "<p style='text-align: center; margin-top: -15px; margin-bottom: 30px;'>AI-Powered Visual Consistency Verification</p>", 
-        unsafe_allow_html=True
-    )
+# ---------- 4. SIDEBAR INPUTS ----------
+with st.sidebar:
+    st.title("👁️ Semantic Validator")
+    st.markdown("---")
     
-    # Status Badge (Centered)
-    status_color = "#238636" if device == "cuda" else "#d29922"
-    status_text = "⚡ GPU ONLINE" if device == "cuda" else "🐢 CPU MODE"
-    st.markdown(
-        f"<div style='text-align: center; margin-bottom: 20px;'><span style='background-color: {status_color}; color: white; padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold;'>{status_text}</span></div>",
-        unsafe_allow_html=True
-    )
-
-# Input Section (This will be styled as a card by the CSS)
-col1, col2, col3 = st.columns([1, 2, 1])
-with col2:
-    with st.form("main_form"):
-        st.markdown("### 1. Upload Source Image")
+    with st.form("input_form"):
+        st.subheader("1. Source Image")
         uploaded_file = st.file_uploader("", type=["jpg", "png", "jpeg"])
         
-        st.markdown("### 2. Enter Description")
-        user_text = st.text_input("", placeholder="e.g. A futuristic city skyline at night...")
+        st.markdown("<br>", unsafe_allow_html=True)
         
-        submit = st.form_submit_button("✨ ANALYZE ALIGNMENT")
+        st.subheader("2. Target Description")
+        user_text = st.text_area("", placeholder="What should this image show?", height=100)
+        
+        st.markdown("---")
+        submit = st.form_submit_button("🚀 Verify Consistency")
 
-# ---------- 5. RESULTS SECTION ----------
-if submit:
+# ---------- 5. MAIN DASHBOARD ----------
+if not submit:
+    # Empty State
+    st.markdown("""
+    <div style='text-align: center; margin-top: 100px; color: #64748b;'>
+        <h1>Ready to Verify</h1>
+        <p>Upload an image and description in the sidebar to start.</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+else:
     if not uploaded_file or not user_text:
         st.warning("⚠️ Please provide both an image and a text description.")
     else:
-        st.markdown("---")
+        # Layout Columns
+        col_img, col_result = st.columns([1, 1.2], gap="large")
         
-        # Process Logic
         image = Image.open(uploaded_file).convert("RGB")
         
-        # Layout for Results: Side-by-Side
-        r_col1, r_col2 = st.columns([1, 1], gap="large")
-        
-        with r_col1:
-            st.image(image, caption="Analyzed Image", use_container_width=True)
-            
-        with r_col2:
-            with st.spinner("🔄 Neural networks are processing..."):
+        # --- COLUMN 1: IMAGE ---
+        with col_img:
+            st.markdown("### 🖼️ Visual Source")
+            st.image(image, use_container_width=True, caption="Input Image")
+
+        # --- COLUMN 2: ANALYSIS ---
+        with col_result:
+            with st.spinner("Analyzing semantics..."):
                 time.sleep(0.5) # UX Pause
                 
-                # BLIP Captioning
+                # BLIP (Caption)
                 inputs = blip_processor(image, text="a photo of", return_tensors="pt").to(device)
                 out = blip_model.generate(**inputs, max_new_tokens=40, num_beams=5, do_sample=False)
                 ai_caption = blip_processor.decode(out[0], skip_special_tokens=True).replace("a photo of", "").strip()
                 
-                # CLIP Scoring
+                # CLIP (Score)
                 clip_inputs = clip_processor(text=[user_text], images=image, return_tensors="pt", padding=True).to(device)
                 outputs = clip_model(**clip_inputs)
-                
                 img_emb = outputs.image_embeds / outputs.image_embeds.norm(dim=-1, keepdim=True)
                 txt_emb = outputs.text_embeds / outputs.text_embeds.norm(dim=-1, keepdim=True)
                 score = (img_emb @ txt_emb[0].T).item()
-                percentage = round(score * 100, 1)
 
-            # Display Metrics
+            st.markdown("### ⚖️ Alignment Verdict")
+            
+            # --- LOGIC FOR VERDICT STAMP (No Percentages) ---
             if score >= 0.28:
-                verdict = "MATCH CONFIRMED"
-                color = "#238636" # Green
-            elif score >= 0.20:
-                verdict = "UNCERTAIN"
-                color = "#d29922" # Orange
-            else:
-                verdict = "MISMATCH DETECTED"
-                color = "#da3633" # Red
-
-            st.markdown(f"### Consistency Score")
-            st.metric(label="Semantic Alignment", value=f"{percentage}%")
-            
-            st.markdown(
-                f"""
-                <div style="background-color: {color}33; border-left: 5px solid {color}; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
-                    <h4 style="margin:0; color: {color} !important;">{verdict}</h4>
+                html_card = f"""
+                <div class="verdict-box verdict-success">
+                    <div class="verdict-title">✅ Match Confirmed</div>
+                    <div class="verdict-desc">High confidence alignment detected.</div>
                 </div>
-                """, 
-                unsafe_allow_html=True
-            )
+                """
+                bar_color = "#22c55e" # Green
+            elif score >= 0.20:
+                html_card = f"""
+                <div class="verdict-box verdict-warning">
+                    <div class="verdict-title">⚠️ Partial Match</div>
+                    <div class="verdict-desc">Some elements align, but ambiguity exists.</div>
+                </div>
+                """
+                bar_color = "#eab308" # Yellow/Orange
+            else:
+                html_card = f"""
+                <div class="verdict-box verdict-error">
+                    <div class="verdict-title">❌ Mismatch</div>
+                    <div class="verdict-desc">The image does not appear to match the description.</div>
+                </div>
+                """
+                bar_color = "#ef4444" # Red
             
-            st.markdown("### 🤖 AI Observation")
-            st.info(f"The AI independently identified: **\"{ai_caption}\"**")
+            # Display The Card
+            st.markdown(html_card, unsafe_allow_html=True)
             
-            # Progress Bar
-            st.progress(min(max(score, 0), 1))
+            # --- VISUAL BAR (No Numbers) ---
+            # We normalize the score (0.0 to 0.4) to a percentage (0% to 100%) purely for the CSS width
+            # 0.4 is usually a max score for CLIP raw text/image pairs
+            display_width = min(max((score / 0.35) * 100, 5), 100) 
+            
+            st.markdown(f"""
+            <div style="margin-bottom: 30px;">
+                <div class="bar-labels">
+                    <span>Low</span>
+                    <span>Medium</span>
+                    <span>High</span>
+                </div>
+                <div class="bar-container">
+                    <div class="bar-fill" style="width: {display_width}%; background-color: {bar_color};"></div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # --- DETAILS SECTION ---
+            st.markdown("#### 🧐 Analysis Details")
+            st.info(f"**AI Vision:** The system identified *\"{ai_caption}\"*.")
+            st.caption(f"**Your Text:** *\"{user_text}\"*")
