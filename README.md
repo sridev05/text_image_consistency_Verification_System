@@ -15,6 +15,7 @@ By leveraging state-of-the-art vision–language models, the system can detect m
 
 ---
 
+
 ## 🛠 Features
 
 - **Image Captioning:** Automatically generates descriptive captions from input images.  
