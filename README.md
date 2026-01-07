@@ -39,7 +39,7 @@ By leveraging state-of-the-art vision–language models, the system can detect m
 - **PyTorch / TensorFlow** – For vision–language models.  
 - **Transformers (Hugging Face)** – For pre-trained multimodal models like CLIP.  
 - **OpenCV / PIL** – Image handling and preprocessing.  
-- **Flask / FastAPI** – Optional backend for serving the system.  
+- **Flask / FastAPI** – Optional backend for serving the system.    
 
 ---
 <img width="1365" height="573" alt="image" src="https://github.com/user-attachments/assets/d555472c-f79c-45d1-b3f0-0fff97b81318" />
